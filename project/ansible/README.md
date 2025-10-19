@@ -12,9 +12,59 @@ This directory contains Ansible playbooks for automated deployment of the PayWal
 
    # macOS
    brew install ansible
+
+   # Windows (using WSL or pip)
+   pip install ansible
    ```
 
 2. Configure your target servers in `inventory.ini`
+
+## Quick Start
+
+### Option 1: Using the deployment script (Recommended)
+
+**Linux/macOS:**
+```bash
+# Make script executable (if needed)
+chmod +x deploy.sh
+
+# Deploy to all servers
+./deploy.sh
+
+# Test connection only
+./deploy.sh --test
+
+# Deploy with verbose output
+./deploy.sh --verbose
+```
+
+**Windows:**
+```cmd
+# Deploy to all servers
+deploy.bat
+
+# Test connection only
+deploy.bat --test
+
+# Deploy with verbose output
+deploy.bat --verbose
+```
+
+### Option 2: Using Ansible directly
+
+```bash
+# Install requirements
+ansible-galaxy install -r requirements.yml
+
+# Test connection
+ansible -i inventory.ini webservers -m ping
+
+# Deploy to all servers
+ansible-playbook -i inventory.ini playbook.yml
+
+# Deploy to specific server
+ansible-playbook -i inventory.ini playbook.yml --limit production
+```
 
 ## Configuration
 
@@ -32,31 +82,9 @@ supabase_anon_key=your-anon-key
 domain_name=paywallet.example.com
 ```
 
-### 2. Test Connection
+### 2. Configure variables in `group_vars/webservers.yml`
 
-```bash
-ansible -i inventory.ini webservers -m ping
-```
-
-## Deployment
-
-### Deploy to all servers
-
-```bash
-ansible-playbook -i inventory.ini deploy.yml
-```
-
-### Deploy to specific server
-
-```bash
-ansible-playbook -i inventory.ini deploy.yml --limit production
-```
-
-### Deploy with verbose output
-
-```bash
-ansible-playbook -i inventory.ini deploy.yml -v
-```
+For better variable management, you can also set variables in the `group_vars/webservers.yml` file.
 
 ## What the Playbook Does
 
@@ -95,12 +123,19 @@ sudo certbot --nginx -d paywallet.example.com
 
 ```
 ansible/
-├── deploy.yml              # Main deployment playbook
-├── inventory.ini           # Server inventory and variables
-├── README.md              # This file
+├── playbook.yml           # Main playbook (imports deploy.yml)
+├── deploy.yml             # Deployment playbook
+├── inventory.ini          # Server inventory and variables
+├── ansible.cfg           # Ansible configuration
+├── requirements.yml       # Ansible dependencies
+├── deploy.sh             # Linux/macOS deployment script
+├── deploy.bat            # Windows deployment script
+├── README.md             # This file
+├── group_vars/
+│   └── webservers.yml    # Group variables for webservers
 └── templates/
-    ├── nginx.conf.j2      # Nginx configuration template
-    └── env.j2             # Environment variables template
+    ├── nginx.conf.j2     # Nginx configuration template
+    └── env.j2            # Environment variables template
 ```
 
 ## Troubleshooting

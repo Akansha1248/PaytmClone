@@ -1,0 +1,53 @@
+---
+# Variables for webservers group
+# These variables will be applied to all hosts in the webservers group
+
+# Application settings
+app_name: paywallet
+app_dir: /var/www/{{ app_name }}
+node_version: "20.x"
+
+# Supabase configuration (uncomment and set your values)
+# supabase_url: "https://your-project.supabase.co"
+# supabase_anon_key: "your-anon-key"
+
+# Domain configuration (optional)
+# domain_name: "paywallet.example.com"
+
+# Git repository (optional - if not set, files will be copied from local)
+# git_repo_url: "https://github.com/yourusername/paywallet.git"
+
+# Security settings
+ufw_enabled: true
+allowed_ports:
+  - port: "22"
+    proto: "tcp"
+    comment: "SSH"
+  - port: "80"
+    proto: "tcp"
+    comment: "HTTP"
+  - port: "443"
+    proto: "tcp"
+    comment: "HTTPS"
+
+# Nginx settings
+nginx_worker_processes: "auto"
+nginx_worker_connections: 1024
+nginx_keepalive_timeout: 65
+nginx_gzip_types:
+  - text/plain
+  - text/css
+  - text/xml
+  - text/javascript
+  - application/json
+  - application/javascript
+  - application/xml+rss
+  - application/rss+xml
+  - font/truetype
+  - font/opentype
+  - application/vnd.ms-fontobject
+  - image/svg+xml
+
+# Application build settings
+npm_install_args: ""
+build_command: "npm run build"

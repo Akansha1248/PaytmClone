@@ -1,0 +1,34 @@
+---
+- name: PayWallet Application Deployment
+  import_playbook: deploy.yml
+  tags: ['deploy']
+
+- name: Post-deployment verification
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Check if Nginx is running
+      service:
+        name: nginx
+        state: started
+      register: nginx_status
+
+    - name: Verify Nginx configuration
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+
+    - name: Check if application files exist
+      stat:
+        path: "{{ app_dir }}/dist/index.html"
+      register: app_files
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          Deployment Status:
+          - Nginx Status: {{ 'Running' if nginx_status.state == 'started' else 'Not Running' }}
+          - Nginx Config: {{ 'Valid' if nginx_test.rc == 0 else 'Invalid' }}
+          - App Files: {{ 'Present' if app_files.stat.exists else 'Missing' }}
+          - Application URL: http://{{ ansible_default_ipv4.address | default(inventory_hostname) }}
+      when: ansible_default_ipv4.address is defined or inventory_hostname is defined
