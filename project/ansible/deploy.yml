@@ -1,0 +1,150 @@
+---
+- name: Deploy PayWallet Application
+  hosts: webservers
+  become: yes
+  vars:
+    app_name: paywallet
+    app_dir: /var/www/{{ app_name }}
+    node_version: "20.x"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install required system packages
+      apt:
+        name:
+          - curl
+          - git
+          - nginx
+          - ufw
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Node.js repository
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+      when: ansible_os_family == "Debian"
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Clone or update application repository
+      git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+      become_user: www-data
+      when: git_repo_url is defined
+
+    - name: Copy application files
+      synchronize:
+        src: ../
+        dest: "{{ app_dir }}"
+        delete: yes
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=.git"
+          - "--exclude=dist"
+          - "--exclude=ansible"
+      when: git_repo_url is not defined
+
+    - name: Set ownership of application files
+      file:
+        path: "{{ app_dir }}"
+        owner: www-data
+        group: www-data
+        recurse: yes
+
+    - name: Create .env file
+      template:
+        src: templates/env.j2
+        dest: "{{ app_dir }}/.env"
+        owner: www-data
+        group: www-data
+        mode: '0600'
+      when: supabase_url is defined and supabase_anon_key is defined
+
+    - name: Install npm dependencies
+      npm:
+        path: "{{ app_dir }}"
+        state: present
+      become_user: www-data
+
+    - name: Build application
+      command: npm run build
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: www-data
+
+    - name: Configure Nginx
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/{{ app_name }}
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart Nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/{{ app_name }}
+        dest: /etc/nginx/sites-enabled/{{ app_name }}
+        state: link
+      notify: Restart Nginx
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Restart Nginx
+
+    - name: Configure firewall to allow HTTP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Configure firewall to allow HTTPS
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+
+    - name: Configure firewall to allow SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Enable firewall
+      ufw:
+        state: enabled
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      changed_when: false
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
